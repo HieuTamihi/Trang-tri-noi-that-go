@@ -60,26 +60,28 @@
 
                     <section class="transactions-section">
                         <h3>Chi Tiết Giao Dịch</h3>
-                        <table id="transactionTable">
-                            <thead>
-                                <tr>
-                                    <th style="width: 150px;">Ngày tháng</th>
-                                    <th>Giao dịch</th>
-                                    <th style="width: 150px;">Số tiền</th>
-                                    <th style="width: 50px;">Xóa</th>
-                                </tr>
-                            </thead>
-                            <tbody id="transactionBody">
-                            </tbody>
-                            <tfoot>
-                                <tr class="total-row">
-                                    <td></td>
-                                    <td style="text-align: left;">Tổng cộng:</td>
-                                    <td id="totalAmount">0</td>
-                                    <td></td>
-                                </tr>
-                            </tfoot>
-                        </table>
+                        <div class="table-wrapper">
+                            <table id="transactionTable">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 150px;">Ngày tháng</th>
+                                        <th>Giao dịch</th>
+                                        <th style="width: 150px;">Số tiền</th>
+                                        <th style="width: 50px;">Xóa</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="transactionBody">
+                                </tbody>
+                                <tfoot>
+                                    <tr class="total-row">
+                                        <td></td>
+                                        <td style="text-align: left;">Tổng cộng:</td>
+                                        <td id="totalAmount">0</td>
+                                        <td></td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
                         <button type="button" class="btn btn-add" onclick="addRow()">+ Thêm dòng</button>
                     </section>
 

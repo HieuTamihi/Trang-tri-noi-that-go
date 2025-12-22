@@ -466,6 +466,13 @@ td input:focus {
     text-transform: uppercase;
 }
 
+/* Wrapper cho bảng scroll ngang trên mobile */
+.table-wrapper {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
 @media (max-width: 1024px) {
     .main-content {
         flex-direction: column;
@@ -479,5 +486,31 @@ td input:focus {
     .form-row {
         flex-direction: column;
         gap: 10px;
+    }
+}
+
+@media (max-width: 768px) {
+    .container {
+        padding: 10px;
+    }
+    
+    .form-section {
+        padding: 15px;
+    }
+    
+    /* Bảng scroll ngang */
+    #transactionTable {
+        min-width: 600px;
+    }
+    
+    td input {
+        padding: 10px;
+        font-size: 16px;
+    }
+    
+    /* Input mô tả rộng hơn */
+    #transactionTable th:nth-child(2),
+    #transactionTable td:nth-child(2) {
+        min-width: 250px;
     }
 }
