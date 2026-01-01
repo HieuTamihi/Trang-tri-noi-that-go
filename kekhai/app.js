@@ -2,12 +2,96 @@
 let currentId = null;
 let rowCount = 0;
 
+// Biến lưu trữ dữ liệu toàn cục (được load từ server)
+let GLOBAL_SAVED_DATA = [];
+
 document.addEventListener('DOMContentLoaded', function() {
-    loadSavedList();
+    // Load dữ liệu từ server khi trang vừa mở
+    fetchSavedData().then(() => {
+        loadSavedList();
+    });
+
     addRow(); // Thêm 1 dòng mặc định
     addRow();
     addRow();
 });
+
+// Hàm gọi API lấy dữ liệu từ JSONbin.io
+async function fetchSavedData() {
+    // Kiểm tra cấu hình
+    if (!JSONBIN_CONFIG || JSONBIN_CONFIG.API_KEY === 'PASTE_YOUR_API_KEY_HERE') {
+        console.warn('Chưa cấu hình JSONbin.io! Sử dụng localStorage.');
+        GLOBAL_SAVED_DATA = JSON.parse(localStorage.getItem('businessData') || '[]');
+        return GLOBAL_SAVED_DATA;
+    }
+
+    try {
+        const response = await fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_CONFIG.BIN_ID}/latest`, {
+            method: 'GET',
+            headers: {
+                'X-Master-Key': JSONBIN_CONFIG.API_KEY
+            }
+        });
+        
+        if (response.ok) {
+            const result = await response.json();
+            // Xử lý format {"data": [...]} từ JSONbin
+            const record = result.record || {};
+            GLOBAL_SAVED_DATA = record.data || [];
+            // Đồng bộ vào localStorage để offline vẫn xem được
+            localStorage.setItem('businessData', JSON.stringify(GLOBAL_SAVED_DATA));
+            return GLOBAL_SAVED_DATA;
+        } else {
+            console.error('Lỗi load dữ liệu:', response.statusText);
+            // Fallback về localStorage
+            GLOBAL_SAVED_DATA = JSON.parse(localStorage.getItem('businessData') || '[]');
+            return GLOBAL_SAVED_DATA;
+        }
+    } catch (error) {
+        console.error('Lỗi kết nối JSONbin:', error);
+        // Fallback về localStorage khi offline
+        GLOBAL_SAVED_DATA = JSON.parse(localStorage.getItem('businessData') || '[]');
+        return GLOBAL_SAVED_DATA;
+    }
+}
+
+// Hàm gọi API lưu dữ liệu lên JSONbin.io
+async function updateServerData(newData) {
+    // Luôn lưu vào localStorage để backup
+    localStorage.setItem('businessData', JSON.stringify(newData));
+    GLOBAL_SAVED_DATA = newData;
+    loadSavedList();
+
+    // Kiểm tra cấu hình
+    if (!JSONBIN_CONFIG || JSONBIN_CONFIG.API_KEY === 'PASTE_YOUR_API_KEY_HERE') {
+        console.warn('Chưa cấu hình JSONbin.io! Chỉ lưu localStorage.');
+        return true;
+    }
+
+    try {
+        const response = await fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_CONFIG.BIN_ID}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Master-Key': JSONBIN_CONFIG.API_KEY
+            },
+            // Lưu theo format {"data": [...]} để phù hợp với JSONbin
+            body: JSON.stringify({ data: newData })
+        });
+        
+        if (response.ok) {
+            return true;
+        } else {
+            console.error('Lỗi lưu lên JSONbin:', response.statusText);
+            alert('Lỗi khi đồng bộ lên server, nhưng đã lưu trên máy bạn.');
+            return false;
+        }
+    } catch (error) {
+        console.error('Lỗi kết nối JSONbin khi lưu:', error);
+        alert('Không có kết nối mạng, nhưng đã lưu trên máy bạn.');
+        return false;
+    }
+}
 
 // Thêm dòng mới vào bảng
 function addRow() {
@@ -17,10 +101,24 @@ function addRow() {
     row.innerHTML = `
         <td><input type="date" class="date-input" onchange="updateTotal()"></td>
         <td><input type="text" class="transaction-input" placeholder="Mô tả giao dịch..."></td>
-        <td><input type="number" class="amount-input" placeholder="0" onchange="updateTotal()" onkeyup="updateTotal()"></td>
+        <td><input type="text" class="amount-input" placeholder="0" oninput="formatCurrencyInput(this)" onchange="updateTotal()"></td>
         <td style="text-align: center;"><button class="btn-delete-row" onclick="deleteRow(this)">×</button></td>
     `;
     tbody.appendChild(row);
+}
+
+// Format input tiền tệ khi nhập
+function formatCurrencyInput(input) {
+    // Xóa tất cả ký tự không phải số
+    let value = input.value.replace(/\D/g, '');
+    
+    // Format dạng 100.000
+    if (value) {
+        value = new Intl.NumberFormat('vi-VN').format(parseInt(value));
+    }
+    
+    input.value = value;
+    updateTotal();
 }
 
 // Xóa dòng
@@ -35,9 +133,7 @@ function deleteRow(btn) {
 function updateRowNumbers() {
     const rows = document.querySelectorAll('#transactionBody tr');
     rowCount = rows.length;
-    rows.forEach((row, index) => {
-        row.cells[0].textContent = index + 1;
-    });
+    // Không cập nhật nội dung cột đầu tiên vì bảng này không có cột STT, cột đầu là Ngày tháng
 }
 
 // Cập nhật tổng tiền
@@ -45,7 +141,9 @@ function updateTotal() {
     const amounts = document.querySelectorAll('.amount-input');
     let total = 0;
     amounts.forEach(input => {
-        const value = parseFloat(input.value) || 0;
+        // Chuyển đổi "100.000" -> 100000 để tính toán
+        const valueStr = input.value.replace(/\./g, '');
+        const value = parseFloat(valueStr) || 0;
         total += value;
     });
     document.getElementById('totalAmount').textContent = formatCurrency(total);
@@ -69,7 +167,8 @@ function getFormData() {
         
         const dateInput = dateEl.value;
         const transaction = transactionEl.value;
-        const amount = parseFloat(amountEl.value) || 0;
+        const amountStr = amountEl.value.replace(/\./g, '');
+        const amount = parseFloat(amountStr) || 0;
         if (dateInput || transaction || amount > 0) {
             transactions.push({
                 stt: index + 1,
@@ -121,7 +220,11 @@ function fillFormData(data) {
             const lastRow = rows[rows.length - 1];
             lastRow.querySelector('.date-input').value = t.date || '';
             lastRow.querySelector('.transaction-input').value = t.transaction || '';
-            lastRow.querySelector('.amount-input').value = t.amount || '';
+            
+            // Format sô tiền khi load lại
+            const amountInput = lastRow.querySelector('.amount-input');
+            const amountVal = t.amount || 0;
+            amountInput.value = amountVal > 0 ? new Intl.NumberFormat('vi-VN').format(amountVal) : '';
         });
     } else {
         addRow();
@@ -140,7 +243,8 @@ function saveData() {
         return;
     }
 
-    let savedData = JSON.parse(localStorage.getItem('businessData') || '[]');
+    // Sử dụng biến toàn cục
+    let savedData = [...GLOBAL_SAVED_DATA];
     
     const existingIndex = savedData.findIndex(item => item.id === data.id);
     if (existingIndex >= 0) {
@@ -149,15 +253,29 @@ function saveData() {
         savedData.push(data);
     }
 
-    localStorage.setItem('businessData', JSON.stringify(savedData));
-    currentId = data.id;
-    loadSavedList();
-    alert('Đã lưu thông tin thành công!');
+    // Gửi lên server
+    updateServerData(savedData).then(success => {
+        if (success) {
+            currentId = data.id;
+            
+            // Lưu default localstorage để tiện cho việc tạo mới nhanh
+            const defaultInfo = {
+                businessName: data.businessName,
+                address: data.address,
+                taxCode: data.taxCode,
+                businessLocation: data.businessLocation,
+                representative: data.representative
+            };
+            localStorage.setItem('defaultBusinessInfo', JSON.stringify(defaultInfo));
+
+            alert('Đã lưu thông tin thành công lên Server!');
+        }
+    });
 }
 
 // Load danh sách đã lưu
 function loadSavedList() {
-    const savedData = JSON.parse(localStorage.getItem('businessData') || '[]');
+    const savedData = GLOBAL_SAVED_DATA;
     const container = document.getElementById('savedList');
     
     if (savedData.length === 0) {
@@ -180,7 +298,7 @@ function loadSavedList() {
 
 // Load dữ liệu
 function loadData(id) {
-    const savedData = JSON.parse(localStorage.getItem('businessData') || '[]');
+    const savedData = GLOBAL_SAVED_DATA;
     const data = savedData.find(item => item.id === id);
     if (data) {
         fillFormData(data);
@@ -191,14 +309,18 @@ function loadData(id) {
 function deleteData(id) {
     if (!confirm('Bạn có chắc muốn xóa dữ liệu này?')) return;
     
-    let savedData = JSON.parse(localStorage.getItem('businessData') || '[]');
+    // Sử dụng biến toàn cục
+    let savedData = [...GLOBAL_SAVED_DATA];
     savedData = savedData.filter(item => item.id !== id);
-    localStorage.setItem('businessData', JSON.stringify(savedData));
     
-    if (currentId === id) {
-        createNew();
-    }
-    loadSavedList();
+    // Gửi cập nhật lên server
+    updateServerData(savedData).then(success => {
+        if (success) {
+            if (currentId === id) {
+                createNew();
+            }
+        }
+    });
 }
 
 // Tạo mới
@@ -207,6 +329,17 @@ function createNew() {
     document.getElementById('businessForm').reset();
     document.getElementById('transactionBody').innerHTML = '';
     rowCount = 0;
+    
+    // Load thông tin mặc định nếu có
+    const defaultInfo = JSON.parse(localStorage.getItem('defaultBusinessInfo') || '{}');
+    if (defaultInfo.businessName) {
+        document.getElementById('businessName').value = defaultInfo.businessName;
+        document.getElementById('address').value = defaultInfo.address || '';
+        document.getElementById('taxCode').value = defaultInfo.taxCode || '';
+        document.getElementById('businessLocation').value = defaultInfo.businessLocation || '';
+        document.getElementById('representative').value = defaultInfo.representative || '';
+    }
+
     addRow();
     addRow();
     addRow();
@@ -438,4 +571,46 @@ window.onclick = function(event) {
     if (event.target === modal) {
         closePreview();
     }
+}
+
+// (Các hàm exportJSON và importJSON đã bị ẩn hoặc không dùng nữa)
+
+// Nhập dữ liệu JSON
+function importJSON(input) {
+    const file = input.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        try {
+            const importedData = JSON.parse(e.target.result);
+            if (!Array.isArray(importedData)) {
+                alert('File không hợp lệ (phải là danh sách)!');
+                return;
+            }
+
+            // Merge dữ liệu: Nếu ID trùng thì ghi đè, chưa có thì thêm mới
+            let currentData = JSON.parse(localStorage.getItem('businessData') || '[]');
+            
+            importedData.forEach(newItem => {
+                const index = currentData.findIndex(d => d.id === newItem.id);
+                if (index !== -1) {
+                    currentData[index] = newItem;
+                } else {
+                    currentData.push(newItem);
+                }
+            });
+
+            localStorage.setItem('businessData', JSON.stringify(currentData));
+            loadSavedList();
+            alert(`Đã nhập thành công ${importedData.length} bản ghi!`);
+            
+            // Xóa input để có thể chọn lại cùng file nếu muốn
+            input.value = '';
+        } catch (error) {
+            console.error(error);
+            alert('Lỗi đọc file JSON: ' + error.message);
+        }
+    };
+    reader.readAsText(file);
 }

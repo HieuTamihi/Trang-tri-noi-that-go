@@ -1,0 +1,24 @@
+{
+    "name": "Sổ Kê Khai Doanh Thu",
+    "short_name": "Kê Khai",
+    "description": "Ứng dụng kê khai doanh thu cho hộ kinh doanh - Mẫu S1a-HKD",
+    "start_url": "/kekhai/",
+    "display": "standalone",
+    "background_color": "#1e3c72",
+    "theme_color": "#1e3c72",
+    "orientation": "portrait",
+    "icons": [
+        {
+            "src": "icons/icon-192.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "any maskable"
+        },
+        {
+            "src": "icons/icon-512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "any maskable"
+        }
+    ]
+}

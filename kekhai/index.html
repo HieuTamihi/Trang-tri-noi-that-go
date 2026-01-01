@@ -2,15 +2,30 @@
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="description" content="Ứng dụng kê khai doanh thu cho hộ kinh doanh - Mẫu S1a-HKD">
+    <meta name="theme-color" content="#1e3c72">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Kê Khai">
+    
     <title>Sổ Chi Tiết Doanh Thu - Mẫu S1a-HKD</title>
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="icons/icon-192.png">
+    
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
     <div class="container">
         <header>
-            <h1>Sổ Chi Tiết Doanh Thu Bán Hàng Hóa, Dịch Vụ</h1>
-            <p class="subtitle">Mẫu số S1a-HKD</p>
+            <div class="header-content">
+                <div>
+                    <h1>Sổ Chi Tiết Doanh Thu Bán Hàng Hóa, Dịch Vụ</h1>
+                    <p class="subtitle">Mẫu số S1a-HKD</p>
+                </div>
+            </div>
         </header>
 
         <div class="main-content">
@@ -18,7 +33,9 @@
             <aside class="sidebar">
                 <h3>Hộ Kinh Doanh Đã Lưu</h3>
                 <div id="savedList"></div>
-                <button class="btn btn-new" onclick="createNew()">+ Tạo mới</button>
+                <div class="sidebar-actions">
+                    <button class="btn btn-new" onclick="createNew()">+ Tạo mới</button>
+                </div>
             </aside>
 
             <!-- Form nhập liệu -->
@@ -112,6 +129,10 @@
         </div>
     </div>
 
+    <button id="installBtn" class="btn btn-install">
+        Cài đặt App
+    </button>
+
     <!-- Modal xem trước -->
     <div id="previewModal" class="modal">
         <div class="modal-content">
@@ -138,6 +159,64 @@
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script src="config.js"></script>
     <script src="app.js"></script>
+    
+    <!-- Đăng ký Service Worker và xử lý cài đặt PWA -->
+    <script>
+        let deferredPrompt;
+        const installBtn = document.getElementById('installBtn');
+
+        // Đăng ký Service Worker (chỉ trên http/https, không phải file://)
+        if ('serviceWorker' in navigator && location.protocol !== 'file:') {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('sw.js')
+                    .then(reg => console.log('Service Worker đã đăng ký'))
+                    .catch(err => console.log('Lỗi đăng ký SW:', err));
+            });
+        }
+
+        // Bắt sự kiện trước khi hiện prompt cài đặt
+        window.addEventListener('beforeinstallprompt', (e) => {
+            // Ngăn Chrome hiện prompt tự động
+            e.preventDefault();
+            // Lưu event để dùng sau
+            deferredPrompt = e;
+            // Hiện nút cài đặt
+            installBtn.style.display = 'block';
+        });
+
+        // Xử lý khi nhấn nút cài đặt
+        installBtn.addEventListener('click', async () => {
+            if (!deferredPrompt) {
+                // Nếu không có prompt (đã cài hoặc không hỗ trợ)
+                alert('Để cài đặt app:\n\n📱 iPhone: Nhấn nút Chia sẻ → "Thêm vào MH chính"\n\n📱 Android: Nhấn menu ⋮ → "Cài đặt ứng dụng"');
+                return;
+            }
+            
+            // Hiện prompt cài đặt
+            deferredPrompt.prompt();
+            
+            // Đợi người dùng chọn
+            const { outcome } = await deferredPrompt.userChoice;
+            console.log('Kết quả cài đặt:', outcome);
+            
+            // Reset
+            deferredPrompt = null;
+            installBtn.style.display = 'none';
+        });
+
+        // Ẩn nút khi đã cài đặt
+        window.addEventListener('appinstalled', () => {
+            console.log('App đã được cài đặt');
+            installBtn.style.display = 'none';
+            deferredPrompt = null;
+        });
+
+        // Kiểm tra nếu đang chạy trong standalone mode (đã cài)
+        if (window.matchMedia('(display-mode: standalone)').matches) {
+            installBtn.style.display = 'none';
+        }
+    </script>
 </body>
 </html>

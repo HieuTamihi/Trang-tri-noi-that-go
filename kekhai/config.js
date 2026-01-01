@@ -1,0 +1,5 @@
+// CẤU HÌNH JSONBIN.IO
+const JSONBIN_CONFIG = {
+    API_KEY: '$2a$10$lZSUnhWXKUC/4zCs8MGAA.Kt4uLsw03qT52IMG6cCFxd/Vu8g40Na',
+    BIN_ID: '6955deedd0ea881f404cdac2'
+};
